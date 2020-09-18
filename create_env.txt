@@ -1,0 +1,25 @@
+pip
+
+Create and activate:
+python3 -m venv env
+source env/bin/activate
+
+For logging out:
+deactivate
+
+remove:
+just delete directory
+
+conda
+
+Create and activate:
+conda create --name myenv
+conda activate myenv
+source activate myvenv //cargar las librerias en path, creo.
+conda deactivate
+
+remove:
+conda remove --name myenv --all
+
+lista ambientes virtuales:
+conda info --envs
