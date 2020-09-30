@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from urllib.parse import urljoin
+from datetime import date
 
 
 def deleteTables():
@@ -127,8 +128,8 @@ while True:
         continue
 
     # cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, NULL)', (url, )) #necesario¿?
-    cur.execute('UPDATE Pages SET html=? WHERE url=?',
-                (memoryview(bytes(html, encoding='utf-8')), url))
+    cur.execute('UPDATE Pages SET html=?, date=? WHERE url=?',
+                (memoryview(bytes(html, encoding='utf-8')), date.today(), url))
     conn.commit()
 
     # Retrieve all of the anchor tags
@@ -190,7 +191,7 @@ while True:
 
 cur.close()
 
-# todo save date when html is fetched
+# todo fetch is day difference is one
 # <a class = "newCity" href = "switchlocation?id_location=6" > Cd. Chihuahua < /a >
 # href:  switchlocation?id_location = 6
 # <a class="newCity" href="switchlocation?id_location=85">Saltillo</a>
