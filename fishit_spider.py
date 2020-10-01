@@ -9,6 +9,7 @@ from datetime import date
 def deleteTables():
     cur.executescript('''
     DROP TABLE IF EXISTS Pages;
+    DROP TABLE IF EXISTS Dates;
     DROP TABLE IF EXISTS Webs;
     ''')
 
@@ -19,10 +20,15 @@ def createTables():
         id INTEGER PRIMARY KEY,
         url TEXT UNIQUE,
         html TEXT DEFAULT NULL,
-        date TEXT DEFAULT NULL,
+        date_id INTEGER DEFAULT NULL,
         interest INTEGER DEFAULT NULL,
         error INTEGER DEFAULT NULL
         );
+
+    CREATE TABLE IF NOT EXISTS Dates (
+        id INTEGER PRIMARY KEY,
+        date DATE
+    );
 
     CREATE TABLE IF NOT EXISTS Webs (
         url TEXT UNIQUE
@@ -62,7 +68,7 @@ while True:
             'SELECT id,url FROM Pages WHERE html is NULL and interest is NULL or 1 and error is NULL ORDER BY RANDOM() LIMIT 1')  # revisar si es así o mejor en webs
         row = cur.fetchone()
         if row is None:
-            print("No Webs founded to crawl.\nPlease, try Again.")
+            print("Found No Webs to crawl. Please, try Again.")
         else:
             break
         print(type(row))
@@ -75,6 +81,10 @@ webs = list()
 for row in cur:
     webs.append(str(row[0]))
 print(webs)
+today = date.today()
+# If the day changes while crawling it won't fetch again the pages. You need to restart the crawling procces. (one crawl, one fetch max)
+SELECT date('now', '-1 day', 'localtime')  # AQUI
+cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( "now" )')  # ESTA MAL
 many_pgs = 0
 while True:
     if (many_pgs < 1):
@@ -83,6 +93,7 @@ while True:
             break
         many_pgs = int(sval)
     many_pgs -= 1
+
     cur.execute(
         'SELECT id,url FROM Pages WHERE html is NULL and interest is NULL or 1 and error is NULL ORDER BY RANDOM() LIMIT 1')  # Date < Date Now
     try:
@@ -129,7 +140,7 @@ while True:
 
     # cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, NULL)', (url, )) #necesario¿?
     cur.execute('UPDATE Pages SET html=?, date=? WHERE url=?',
-                (memoryview(bytes(html, encoding='utf-8')), date.today(), url))
+                (memoryview(bytes(html, encoding='utf-8')), today, url))
     conn.commit()
 
     # Retrieve all of the anchor tags
@@ -192,6 +203,7 @@ while True:
 cur.close()
 
 # todo fetch is day difference is one
+# TAbles dates
 # <a class = "newCity" href = "switchlocation?id_location=6" > Cd. Chihuahua < /a >
 # href:  switchlocation?id_location = 6
 # <a class="newCity" href="switchlocation?id_location=85">Saltillo</a>
