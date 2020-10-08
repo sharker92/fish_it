@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from urllib.parse import urljoin
-from datetime import date
+from datetime import date, datetime
 
 
 def deleteTables():
@@ -22,12 +22,13 @@ def createTables():
         html TEXT DEFAULT NULL,
         date_id INTEGER DEFAULT NULL,
         interest INTEGER DEFAULT NULL,
-        error INTEGER DEFAULT NULL
+        error INTEGER DEFAULT NULL,
+        FOREIGN KEY(date_id) REFERENCES Dates(id)
         );
 
     CREATE TABLE IF NOT EXISTS Dates (
         id INTEGER PRIMARY KEY,
-        date DATE
+        date TEXT UNIQUE
     );
 
     CREATE TABLE IF NOT EXISTS Webs (
@@ -49,6 +50,7 @@ while True:
         print("Tables deleted")
         createTables()
         print("Tables created")
+        continue
     if start_url != '' and not start_url.startswith('http'):
         print('Please enter a valid url or click enter to continue. ')
         continue
@@ -81,10 +83,23 @@ webs = list()
 for row in cur:
     webs.append(str(row[0]))
 print(webs)
+
 today = date.today()
+# print(today)
+print(type(today))
 # If the day changes while crawling it won't fetch again the pages. You need to restart the crawling procces. (one crawl, one fetch max)
-SELECT date('now', '-1 day', 'localtime')  # AQUI
-cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( "now" )')  # ESTA MAL
+cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( ? )', (today,))
+
+# https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
+# https://www.sqlite.org/lang_datefunc.html
+# estoy en la comparacion de las fechas
+conn.commit()
+cur.execute('SELECT id,date From Dates')
+row = cur.fetchone()
+print(row)
+current_date = datetime.strptime(row[1], "%Y-%m-%d").date()
+print(current_date)
+print(type(current_date))
 many_pgs = 0
 while True:
     if (many_pgs < 1):
@@ -93,9 +108,12 @@ while True:
             break
         many_pgs = int(sval)
     many_pgs -= 1
+###
 
-    cur.execute(
-        'SELECT id,url FROM Pages WHERE html is NULL and interest is NULL or 1 and error is NULL ORDER BY RANDOM() LIMIT 1')  # Date < Date Now
+    # Date < Date Now
+    cur.execute("SELECT id,url FROM Pages WHERE html is NULL and interest is NULL or 1 and error is NULL and   ORDER BY RANDOM() LIMIT 1")
+
+#####
     try:
         row = cur.fetchone()
         # print("Fetching: ", row)
