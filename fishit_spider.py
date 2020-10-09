@@ -75,7 +75,7 @@ while True:
             break
         print(type(row))
         print(row)
-
+# ME QUEDE EN REVISAR TODO EL CRAWL
 # Crawl on current pages
 print("Starting crawl on:")
 cur.execute('''SELECT url FROM Webs''')
@@ -84,22 +84,6 @@ for row in cur:
     webs.append(str(row[0]))
 print(webs)
 
-today = date.today()
-# print(today)
-print(type(today))
-# If the day changes while crawling it won't fetch again the pages. You need to restart the crawling procces. (one crawl, one fetch max)
-cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( ? )', (today,))
-
-# https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
-# https://www.sqlite.org/lang_datefunc.html
-# estoy en la comparacion de las fechas
-conn.commit()
-cur.execute('SELECT id,date From Dates')
-row = cur.fetchone()
-print(row)
-current_date = datetime.strptime(row[1], "%Y-%m-%d").date()
-print(current_date)
-print(type(current_date))
 many_pgs = 0
 while True:
     if (many_pgs < 1):
@@ -109,11 +93,19 @@ while True:
         many_pgs = int(sval)
     many_pgs -= 1
 ###
+    today = date.today()
+    cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( ? )', (today,))
+    conn.commit()
+    cur.execute('SELECT id,date From Dates WHERE date == ?', (today,))
+    row = cur.fetchone()
+    print(row)
+    today_id = row[0]
 
-    # Date < Date Now
-    cur.execute("SELECT id,url FROM Pages WHERE html is NULL and interest is NULL or 1 and error is NULL and   ORDER BY RANDOM() LIMIT 1")
+#current_date = datetime.strptime(row[1], "%Y-%m-%d").date()
+    # Falta verificar si se ordenan los datos conforme los vamos metiendo. De ser así, el comparar las fechas por ID sería correcto
+    cur.execute('SELECT id,url FROM Pages WHERE html is NULL and (interest is NULL or 1) and error is NULL and (date_id is NULL or date_id > ?)  ORDER BY RANDOM() LIMIT 1', (today_id,))
 
-#####
+###
     try:
         row = cur.fetchone()
         # print("Fetching: ", row)
@@ -139,7 +131,6 @@ while True:
         if 'text/html' != document.headers["content-type"][:9]:
             print("Ignore non text/html page")
             cur.execute('UPDATE Pages SET interest=?', (0, ))
-            # cur.execute('DELETE FROM Pages WHERE url=?', (url, )) CODIGO ORIGINAL
             conn.commit()
             continue
 
@@ -157,8 +148,8 @@ while True:
         continue
 
     # cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, NULL)', (url, )) #necesario¿?
-    cur.execute('UPDATE Pages SET html=?, date=? WHERE url=?',
-                (memoryview(bytes(html, encoding='utf-8')), today, url))
+    cur.execute('UPDATE Pages SET html=?, date_id=? WHERE url=?',
+                (memoryview(bytes(html, encoding='utf-8')), today_id, url))
     conn.commit()
 
     # Retrieve all of the anchor tags
@@ -166,10 +157,10 @@ while True:
     count = 0
     for tag in tags:
         href = tag.get('href', None)
-        print()
-        print(tag)
-        print("href: ", href)
-        input()
+        # print()
+        # print(tag)
+        # print("href: ", href)
+        # input()
 
         if (href is None):
             continue
@@ -181,14 +172,13 @@ while True:
         if (ipos > 1):
             href = href[:ipos]
 
-        print("#href: ", href)
-        input()
+        # print("#href: ", href)
+        # input()
 
         if (href.endswith('.png') or href.endswith('.jpg') or href.endswith('.gif')):
             continue
         if (href.endswith('/')):
             href = href[:-1]
-        # print href
         if (len(href) < 1):
             continue
 
@@ -216,13 +206,13 @@ while True:
         # print fromid, toid
         # cur.execute('INSERT OR IGNORE INTO Links (from_id, to_id) VALUES ( ?, ? )', (fromid, toid))
 
+    if count % 50 == 0:
+        conn.commit()
+    if count % 100 == 0:
+        time.sleep(1)
     print(count)
 
 cur.close()
 
-# todo fetch is day difference is one
-# TAbles dates
-# <a class = "newCity" href = "switchlocation?id_location=6" > Cd. Chihuahua < /a >
-# href:  switchlocation?id_location = 6
-# <a class="newCity" href="switchlocation?id_location=85">Saltillo</a>
-# href:  switchlocation?id_location=85
+
+# location
