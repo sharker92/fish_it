@@ -3,7 +3,8 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from urllib.parse import urljoin
-from datetime import date, datetime
+from datetime import date
+import time
 
 
 def deleteTables():
@@ -12,6 +13,8 @@ def deleteTables():
     DROP TABLE IF EXISTS Dates;
     DROP TABLE IF EXISTS Webs;
     ''')
+
+# TO DO Falta agregar web_id a Pages y referenciarlo con la tabla de webs
 
 
 def createTables():
@@ -45,12 +48,14 @@ createTables()
 # Input new pages
 while True:
     start_url = input('Enter a new web url or enter to crawl: ')
+    # reset data base
     if start_url == "reset":
         deleteTables()
         print("Tables deleted")
         createTables()
         print("Tables created")
         continue
+    # pass if pressed enter and has at least http
     if start_url != '' and not start_url.startswith('http'):
         print('Please enter a valid url or click enter to continue. ')
         continue
@@ -66,15 +71,21 @@ while True:
                 'INSERT OR IGNORE INTO Pages (url) VALUES ( ? )', (web, ))
             conn.commit()
     else:
+        # que pasa cuando ya este trepado y necesite retrepar porque es otro día
+        today = date.today()
+        cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( ? )', (today,))
+        conn.commit()
+        # TODO Revisar los de las fechas, no necesita ser NULL el html
         cur.execute(
-            'SELECT id,url FROM Pages WHERE html is NULL and interest is NULL or 1 and error is NULL ORDER BY RANDOM() LIMIT 1')  # revisar si es así o mejor en webs
-        row = cur.fetchone()
-        if row is None:
-            print("Found No Webs to crawl. Please, try Again.")
-        else:
-            break
-        print(type(row))
-        print(row)
+            'SELECT id,url FROM Pages WHERE html is NULL and error is NULL and (interest is NULL or interest is  1) ORDER BY RANDOM() LIMIT 1')
+
+    row = cur.fetchone()
+    if row is None:
+        print("Found No Webs to crawl. Please, try Again.")
+    else:
+        break
+    print(type(row))
+    print(row)
 # ME QUEDE EN REVISAR TODO EL CRAWL
 # Crawl on current pages
 print("Starting crawl on:")
@@ -86,13 +97,13 @@ print(webs)
 
 many_pgs = 0
 while True:
-    if (many_pgs < 1):
-        sval = input('How many pages:')
-        if (len(sval) < 1):
-            break
-        many_pgs = int(sval)
-    many_pgs -= 1
-###
+    # if (many_pgs < 1):
+    #     sval = input('How many pages:')
+    #     if (len(sval) < 1):
+    #         break
+    #     many_pgs = int(sval)
+    # many_pgs -= 1
+    ###
     today = date.today()
     cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( ? )', (today,))
     conn.commit()
@@ -103,6 +114,7 @@ while True:
 
 #current_date = datetime.strptime(row[1], "%Y-%m-%d").date()
     # Falta verificar si se ordenan los datos conforme los vamos metiendo. De ser así, el comparar las fechas por ID sería correcto
+    # REVISAR HTML NO TIENE QUE SER NULL (LA FECHA MANDA)
     cur.execute('SELECT id,url FROM Pages WHERE html is NULL and (interest is NULL or 1) and error is NULL and (date_id is NULL or date_id > ?)  ORDER BY RANDOM() LIMIT 1', (today_id,))
 
 ###
@@ -127,10 +139,11 @@ while True:
             print("Error on page: ", document.status_code)
             cur.execute('UPDATE Pages SET error=? WHERE url=?',
                         (document.status_code, url))
-
+        print(document.headers["content-type"])
         if 'text/html' != document.headers["content-type"][:9]:
             print("Ignore non text/html page")
             cur.execute('UPDATE Pages SET interest=?', (0, ))
+            print("AAAAAAAAA")
             conn.commit()
             continue
 
@@ -216,3 +229,8 @@ cur.close()
 
 
 # location
+# me esta metiendo el interest como 0 por defecto
+
+# tipos de contenido
+# application/pdf
+#text/html; charset=utf-8
