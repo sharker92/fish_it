@@ -14,8 +14,6 @@ def deleteTables():
     DROP TABLE IF EXISTS Webs;
     ''')
 
-# TO DO Falta agregar web_id a Pages y referenciarlo con la tabla de webs
-
 
 def createTables():
     cur.executescript('''
@@ -26,7 +24,9 @@ def createTables():
         date_id INTEGER DEFAULT NULL,
         interest INTEGER DEFAULT NULL,
         error INTEGER DEFAULT NULL,
+        web_id INTEGER DEFAULT NULL,
         FOREIGN KEY(date_id) REFERENCES Dates(id)
+        FOREIGN KEY(web_id) REFERENCES Webs(id)
         );
 
     CREATE TABLE IF NOT EXISTS Dates (
@@ -35,6 +35,7 @@ def createTables():
     );
 
     CREATE TABLE IF NOT EXISTS Webs (
+        id INTEGER PRIMARY KEY,
         url TEXT UNIQUE
     );
     ''')
@@ -64,12 +65,14 @@ while True:
             start_url = start_url[:-1]
         web = start_url
         print("Adding to databases: ", web)
-        if (len(web) > 1):
-            cur.execute(
-                'INSERT OR IGNORE INTO Webs (url) VALUES ( ? )', (web, ))
-            cur.execute(
-                'INSERT OR IGNORE INTO Pages (url) VALUES ( ? )', (web, ))
-            conn.commit()
+        cur.execute('INSERT OR IGNORE INTO Webs (url) VALUES ( ? )', (web, ))
+        cur.execute('INSERT OR IGNORE INTO Pages (url) VALUES ( ? )', (web, ))
+        cur.execute(
+            'UPDATE Pages SET web_id = Webs.id From Webs WHERE Pages.url = Webs.url')
+        # TO DO Falta agregar web_id a Pages y referenciarlo con la tabla de webs
+        # AQUI ME QUEDE
+        # https://stackoverflow.com/questions/3845718/update-table-values-from-another-table-with-the-same-user-name/63079219#63079219
+        conn.commit()
     else:
         # que pasa cuando ya este trepado y necesite retrepar porque es otro día
         today = date.today()
