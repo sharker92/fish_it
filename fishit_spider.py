@@ -21,11 +21,11 @@ def createTables():
         id INTEGER PRIMARY KEY,
         url TEXT UNIQUE,
         html TEXT DEFAULT NULL,
+        web_id INTEGER DEFAULT NULL,
         date_id INTEGER DEFAULT NULL,
         interest INTEGER DEFAULT NULL,
         error INTEGER DEFAULT NULL,
-        web_id INTEGER DEFAULT NULL,
-        FOREIGN KEY(date_id) REFERENCES Dates(id)
+        FOREIGN KEY(date_id) REFERENCES Dates(id),
         FOREIGN KEY(web_id) REFERENCES Webs(id)
         );
 
@@ -45,6 +45,8 @@ conn = sqlite3.connect('./fishit_spider.sqlite')
 cur = conn.cursor()
 createTables()
 # https://alsuper.com/
+# https://www.walmart.com.mx/
+# https://www.liverpool.com.mx/
 
 # Input new pages
 while True:
@@ -58,55 +60,42 @@ while True:
         continue
     # pass if pressed enter and has at least http
     if start_url != '' and not start_url.startswith('http'):
-        print('Please enter a valid url or click enter to continue. ')
+        print('Please enter a valid url or click enter to continue. \n')
         continue
     if start_url:
         if (start_url.endswith('/')):
             start_url = start_url[:-1]
-        web = start_url
-        print("Adding to databases: ", web)
-        cur.execute('INSERT OR IGNORE INTO Webs (url) VALUES ( ? )', (web, ))
-        cur.execute('INSERT OR IGNORE INTO Pages (url) VALUES ( ? )', (web, ))
+        print("Adding to databases: ", start_url)
+        cur.execute(
+            'INSERT OR IGNORE INTO Webs (url) VALUES ( ? )', (start_url, ))
+        cur.execute(
+            'INSERT OR IGNORE INTO Pages (url) VALUES ( ? )', (start_url, ))
         cur.execute(
             'UPDATE Pages SET web_id = Webs.id From Webs WHERE Pages.url = Webs.url')
-        # TO DO Falta agregar web_id a Pages y referenciarlo con la tabla de webs
-        # AQUI ME QUEDE
-        # https://stackoverflow.com/questions/3845718/update-table-values-from-another-table-with-the-same-user-name/63079219#63079219
-        conn.commit()
-    else:
-        # que pasa cuando ya este trepado y necesite retrepar porque es otro día
-        today = date.today()
-        cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( ? )', (today,))
-        conn.commit()
-        # TODO Revisar los de las fechas, no necesita ser NULL el html
-        cur.execute(
-            'SELECT id,url FROM Pages WHERE html is NULL and error is NULL and (interest is NULL or interest is  1) ORDER BY RANDOM() LIMIT 1')
 
-    row = cur.fetchone()
-    if row is None:
-        print("Found No Webs to crawl. Please, try Again.")
+        conn.commit()
+        print("\nActual Webs: ")
+        cur.execute('''SELECT url FROM Webs''')
+        print(cur.fetchall(), "\n")
+        continue
+
+    cur.execute('''SELECT url FROM Webs''')
+    webs_row = cur.fetchone()
+    if webs_row is None:
+        print("Found No Webs to crawl. Please, try Again.\n")
     else:
         break
-    print(type(row))
-    print(row)
-# ME QUEDE EN REVISAR TODO EL CRAWL
-# Crawl on current pages
-print("Starting crawl on:")
+# ME QUEDE EN REVISAR TODO EL CRAWL.
+# TO DO Falta agregar web_id a Pages y referenciarlo con la tabla de webs
+# Crawler
+print("\nStarting crawl on:")
 cur.execute('''SELECT url FROM Webs''')
-webs = list()
-for row in cur:
-    webs.append(str(row[0]))
-print(webs)
+print(cur.fetchall(), "\n")
 
 many_pgs = 0
+pgs_cnt = 0
 while True:
-    # if (many_pgs < 1):
-    #     sval = input('How many pages:')
-    #     if (len(sval) < 1):
-    #         break
-    #     many_pgs = int(sval)
-    # many_pgs -= 1
-    ###
+
     today = date.today()
     cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( ? )', (today,))
     conn.commit()
@@ -229,6 +218,11 @@ while True:
     print(count)
 
 cur.close()
+
+
+# que pasa cuando ya este trepado y necesite retrepar porque es otro día
+# TODO Revisar los de las fechas, no necesita ser NULL el html
+#cur.execute('SELECT id,url FROM Pages WHERE html is NULL and error is NULL and (interest is NULL or interest is  1) ORDER BY RANDOM() LIMIT 1')
 
 
 # location
