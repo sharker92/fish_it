@@ -30,7 +30,7 @@ def createTables():
         );
 
     CREATE TABLE IF NOT EXISTS Dates (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT UNIQUE
     );
 
@@ -97,18 +97,15 @@ pgs_cnt = 0
 while True:
 
     today = date.today()
+    print(today)
     cur.execute('INSERT OR IGNORE INTO Dates (date) VALUES ( ? )', (today,))
     conn.commit()
-    cur.execute('SELECT id,date From Dates WHERE date == ?', (today,))
-    row = cur.fetchone()
-    print(row)
-    today_id = row[0]
-
-#current_date = datetime.strptime(row[1], "%Y-%m-%d").date()
-    # Falta verificar si se ordenan los datos conforme los vamos metiendo. De ser así, el comparar las fechas por ID sería correcto
-    # REVISAR HTML NO TIENE QUE SER NULL (LA FECHA MANDA)
-    cur.execute('SELECT id,url FROM Pages WHERE html is NULL and (interest is NULL or 1) and error is NULL and (date_id is NULL or date_id > ?)  ORDER BY RANDOM() LIMIT 1', (today_id,))
-
+    # cur.execute('SELECT id,date From Dates WHERE date == ?', (today,))
+    # row = cur.fetchone()
+    # print(row)
+    # today_id = row[0]
+    #current_date = datetime.strptime(row[1], "%Y-%m-%d").date()
+    cur.execute('SELECT Pages.id, Pages.url FROM Pages JOIN Dates on Dates.id = Pages.date_id WHERE (date_id is NULL or Dates.date < ?) and (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1', (today,))
 ###
     try:
         row = cur.fetchone()
@@ -117,11 +114,11 @@ while True:
         url = row[1]
     except:
         print('No unretrieved HTML pages found')
-        many_pgs = 0
+        # many_pgs = 0 creo ya no lo necesito
         break
     print("Fetching:")
     print(fromid, url, end=' ')
-
+    input("pause")
     try:
         document = requests.get(url)
 
