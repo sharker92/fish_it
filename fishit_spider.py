@@ -105,7 +105,7 @@ while True:
     # print(row)
     # today_id = row[0]
     #current_date = datetime.strptime(row[1], "%Y-%m-%d").date()
-    cur.execute('SELECT Pages.id, Pages.url FROM Pages JOIN Dates on Dates.id = Pages.date_id WHERE (date_id is NULL or Dates.date < ?) and (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1', (today,))
+    cur.execute('SELECT Pages.id, Pages.url FROM Pages WHERE (date_id is NULL or (SELECT date FROM Dates WHERE Dates.id = date_id < ?)) and (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1', (today,))
 ###
     try:
         row = cur.fetchone()
@@ -118,25 +118,26 @@ while True:
         break
     print("Fetching:")
     print(fromid, url, end=' ')
-    input("pause")
     try:
         document = requests.get(url)
 
-        html = document.text
+        status_code = document.status_code
 
-        if document.status_code != 200:
+        if status_code != 200:
             print("Error on page: ", document.status_code)
             cur.execute('UPDATE Pages SET error=? WHERE url=?',
-                        (document.status_code, url))
-        print(document.headers["content-type"])
-        if 'text/html' != document.headers["content-type"][:9]:
+                        (status_code, url))
+
+        content_type = document.headers["content-type"][:9]
+        # print(document.headers["content-type"])
+        if content_type != 'text/html':
             print("Ignore non text/html page")
-            cur.execute('UPDATE Pages SET interest=?', (0, ))
-            print("AAAAAAAAA")
+            cur.execute('UPDATE Pages SET interest=? WHERE url=?', (0, url))
             conn.commit()
             continue
 
-        print('('+str(len(html))+')', end=' ')
+        html = document.text
+        print('('+str(len(html))+')', end=' ')  # imprime longitud del html
 
         soup = BeautifulSoup(html, "html.parser")
     except KeyboardInterrupt:
@@ -148,12 +149,14 @@ while True:
         cur.execute('UPDATE Pages SET error=-1 WHERE url=?', (url, ))
         conn.commit()
         continue
-
-    # cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, NULL)', (url, )) #necesario¿?
-    cur.execute('UPDATE Pages SET html=?, date_id=? WHERE url=?',
-                (memoryview(bytes(html, encoding='utf-8')), today_id, url))
+    # cur.execute('INSERT OR IGNORE INTO Pages (url, html) VALUES ( ?, NULL)', (url, )) #necesario¿? #AQUI es posible que sí
+    #   cur.execute('INSERT OR IGNORE INTO Pages (url, html, new_rank) VALUES ( ?, NULL, 1.0 )', ( url, ) )
+    #   cur.execute('UPDATE Pages SET html=? WHERE url=?', (memoryview(html), url ) )
+    cur.execute('UPDATE Pages SET html=?, date_id = (SELECT id FROM Dates WHERE date = ?) WHERE url=?',
+                (memoryview(bytes(html, encoding='utf-8')), today, url))
     conn.commit()
 
+    input("pause")
     # Retrieve all of the anchor tags
     tags = soup.find_all('a')
     count = 0
