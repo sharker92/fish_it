@@ -86,7 +86,6 @@ while True:
     else:
         break
 
-
 # Crawler
 print("\nStarting crawl on:")
 # Get the current webs
