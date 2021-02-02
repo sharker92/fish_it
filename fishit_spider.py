@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from urllib.parse import urljoin
 from datetime import date, timedelta
 import time
+# UPDATE Pages SET date_id = 12 WHERE date_id = 2
 
 
 def deleteTables():
@@ -110,7 +111,7 @@ while True:
         conn.commit()
 
     cur.execute(
-        'SELECT Pages.id, Pages.url FROM Pages WHERE (date_id is NULL or (SELECT date FROM Dates WHERE Dates.id = date_id < ?)) and (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1', (today,))
+        'SELECT Pages.id, Pages.url FROM Pages WHERE (date_id is NULL or (SELECT date FROM Dates WHERE Dates.id = date_id) < ?) and (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1', (today,))
     try:
         row = cur.fetchone()
         fromid = row[0]
@@ -121,7 +122,9 @@ while True:
     print("Fetching:")
     print(fromid, url, end=' ')
     try:
-        document = requests.get(url)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
+        document = requests.get(url, headers=headers)
         pg_inf = {}
         pg_inf["status_code"] = document.status_code
 
@@ -134,7 +137,8 @@ while True:
 
         if pg_inf["content_type"] != 'text/html':
             print("Ignore non text/html page")
-            cur.execute('UPDATE Pages SET interest=? WHERE url=?', (0, url))
+            cur.execute(
+                'UPDATE Pages SET interest=?, date_id = (SELECT id FROM Dates WHERE date = ?) WHERE url=?', (0, today, url))
             conn.commit()
             continue
 
