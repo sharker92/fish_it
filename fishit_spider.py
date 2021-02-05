@@ -1,6 +1,6 @@
 import sqlite3
 import requests
-from bs4 import BeautifulSoup
+from requests_html import HTML
 from urllib.parse import urlparse
 from urllib.parse import urljoin
 from datetime import date, timedelta
@@ -145,8 +145,8 @@ while True:
         pg_inf["html"] = document.text
         # imprime longitud del html
         print('('+str(len(pg_inf["html"]))+')', end=' ')
+        r_html = HTML(html=pg_inf["html"])
 
-        soup = BeautifulSoup(pg_inf["html"], "html.parser")
     except KeyboardInterrupt:
         print('\n\nProgram interrupted by user...')
         break
@@ -159,18 +159,15 @@ while True:
                 (memoryview(bytes(pg_inf["html"], encoding='utf-8')), today, url))
     conn.commit()
 
-    # Retrieve all of the anchor tags
-    tags = soup.find_all('a')
-
+    # Retrieve all of the href links on anchor tags
+    href_list = r_html.xpath('//a/@href')
     count = 0
-    for tag in tags:
-        href = tag.get('href', None)
-
+    for href in href_list:
         if (href is None):
             continue
         # Resolve relative references like href="/contact"
-        up = urlparse(href)
-        if (len(up.scheme) < 1):
+        phref = urlparse(href)
+        if (len(phref.scheme) < 1):
             href = urljoin(url, href)
         ipos = href.find('#')
         if (ipos > 1):
@@ -181,7 +178,6 @@ while True:
             href = href[:-1]
         if (len(href) < 1):
             continue
-
         # Check if the URL is in any of the webs (web delimiter)
         found = False
         for web in webs:
