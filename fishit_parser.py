@@ -10,16 +10,21 @@ def createTables(cur):
     cur.executescript('''
     CREATE TABLE IF NOT EXISTS Products (
         id INTEGER PRIMARY KEY,
-        name TEXT,
-        price TEXT DEFAULT NULL,
+        web_id INTEGER DEFAULT NULL,
         date_id INTEGER DEFAULT NULL,
-        FOREIGN KEY(date_id) REFERENCES Dates(id)
+        prod-id INTEGER DEFAULT NULL,
+        prod_name TEXT,
+        prod_price INTEGER DEFAULT NULL,
+        FOREIGN KEY(date_id) REFERENCES Dates(id),
+        FOREIGN KEY(web_id) REFERENCES Webs(id)
         );
     CREATE TABLE IF NOT EXISTS Dates (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT UNIQUE
     );
+
     CREATE TABLE IF NOT EXISTS Webs (
+        id INTEGER PRIMARY KEY,
         url TEXT UNIQUE
     );
     ''')
@@ -40,11 +45,8 @@ while True:
 
     # TODO buscar precios, si no hay, marcarlo como pagina sin interés.
     # filtrar por ubicación (location)
-    # <ul class="row list-unstyled products--list">
-    # <li class="col-xs-6 col-sm-3 col-md-3 home--product-item" data-product-id="441494" data-favorite="0">
-    # <div class="product-item--desc">
-    # <h5 class="product-item--title">
-    # <h4 class="product-item--price">
+    # Si la pagina que se trepo es igual de un día a otro, no es necesario trepar de nuevo [CRAWLER]
+
     r_html = HTML(html=html)
     ul = r_html.find(".row.list-unstyled")
     # ul = r_html.xpath("//ul[@class = 'products--list']")

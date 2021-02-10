@@ -4,3 +4,4 @@ alsuper.txt
 env/
 *.sqlite
 test.py
+data/
