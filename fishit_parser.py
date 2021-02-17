@@ -6,13 +6,13 @@ import sqlite3
 BASE_DIR = os.path.dirname(__file__)
 
 
-def createTables(cur):
+def createTables():
     cur.executescript('''
     CREATE TABLE IF NOT EXISTS Products (
         id INTEGER PRIMARY KEY,
         web_id INTEGER DEFAULT NULL,
         date_id INTEGER DEFAULT NULL,
-        prod-id INTEGER DEFAULT NULL,
+        id_prod INTEGER DEFAULT NULL,
         prod_name TEXT,
         prod_price INTEGER DEFAULT NULL,
         FOREIGN KEY(date_id) REFERENCES Dates(id),
@@ -30,18 +30,29 @@ def createTables(cur):
     ''')
 
 
-conn = sqlite3.connect('./fishit_spider.sqlite')
+conn = sqlite3.connect('./fishit_products.sqlite')
 cur = conn.cursor()
-new_conn = sqlite3.connect('./fishit_products.sqlite')
-new_cur = new_conn.cursor()
+createTables()
 
-createTables(new_conn)
+crawled_database = './fishit_spider.sqlite'
+cur.execute("ATTACH ? as Crawled", (crawled_database,))
+
+cur.execute('INSERT or IGNORE INTO Dates SELECT * from Crawled.Dates')
+cur.execute('INSERT or IGNORE INTO Webs SELECT * from Crawled.Webs')
+conn.commit()
+
 while True:
     # Interest 1 = Interested, not scraped.
     # Interest 2 = Interested, scraped since last html update.
     cur.execute(
-        'SELECT id, url, html FROM Pages WHERE (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1')
-    id, url, html = cur.fetchone()
+        'SELECT id, url, html FROM Crawled.Pages WHERE (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1')
+    try:
+        id, url, html = cur.fetchone()
+    except:
+        print('No unretrieved HTML pages found')  # AQUI
+        break
+    print("Fetching:")
+    print(id, url, end=' ')
 
     # TODO buscar precios, si no hay, marcarlo como pagina sin interés.
     # filtrar por ubicación (location)
@@ -65,7 +76,7 @@ while True:
         prod_data = {}
         # print(li)
         # print(li.full_text)
-        prod_data['prod_id'] = li.attrs["data-product-id"]
+        prod_data['id_prod'] = li.attrs["data-product-id"]
         prod_data['prod_name'] = li.find(".product-item--title p")[0].text
         prod_data['prod_price'] = li.find(".product-item--price b")[0].text
         prod_data['data_fav'] = li.attrs["data-favorite"]
@@ -77,5 +88,5 @@ while True:
     path = os.path.join(BASE_DIR, 'data')
     os.makedirs(path, exist_ok=True)
     filepath = os.path.join('data', f'{name}.csv')
-    df.to_csv(filepath, index=True)
+    df.to_csv(filepath, index=False)
     break

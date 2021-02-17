@@ -113,9 +113,7 @@ while True:
     cur.execute(
         'SELECT Pages.id, Pages.url FROM Pages WHERE (date_id is NULL or (SELECT date FROM Dates WHERE Dates.id = date_id) < ?) and (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1', (today,))
     try:
-        row = cur.fetchone()
-        fromid = row[0]
-        url = row[1]
+        fromid, url = cur.fetchone()
     except:
         print('No unretrieved HTML pages found')
         break
