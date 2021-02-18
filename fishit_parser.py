@@ -42,8 +42,11 @@ cur.execute('INSERT or IGNORE INTO Webs SELECT * from Crawled.Webs')
 conn.commit()
 
 while True:
+    # Interest 0 = Page with no prices, not interested.
     # Interest 1 = Interested, not scraped.
     # Interest 2 = Interested, scraped since last html update.
+    # Error -1 = Unable to retrieve or parse page
+    # Error -2 = found more <ul> than expected
     cur.execute(
         'SELECT id, url, html FROM Crawled.Pages WHERE (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1')
     try:
@@ -60,17 +63,22 @@ while True:
 
     r_html = HTML(html=html)
     ul = r_html.find(".row.list-unstyled")
-    # ul = r_html.xpath("//ul[@class = 'products--list']")
-    print(url)
-    print(ul)
 
+    if len(ul) == 0:
+        cur.execute('UPDATE Pages SET interest=0 WHERE url=?', (url,))
+        conn.commit()
+        print("Page without interest.")
+        continue
     if len(ul) != 1:
+        cur.execute('UPDATE Pages SET error=-2 WHERE url=?', (url,))
+        conn.commit()
         print("Error, found more <ul> than expected")
         continue
+
     # print(ul[0].text)
     li_list = ul[0].find("li")
 
-    print(f"Found {len(li_list)} items.")
+    print(f": Found {len(li_list)} items.")
     table_data = []
     for li in li_list:
         prod_data = {}
@@ -90,3 +98,6 @@ while True:
     filepath = os.path.join('data', f'{name}.csv')
     df.to_csv(filepath, index=False)
     break
+
+cur.execute('DETACH DATABASE Crawled')
+cur.close()
