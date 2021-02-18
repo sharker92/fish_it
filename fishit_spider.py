@@ -26,8 +26,8 @@ def createTables():
         date_id INTEGER DEFAULT NULL,
         interest INTEGER DEFAULT NULL,
         error INTEGER DEFAULT NULL,
-        FOREIGN KEY(date_id) REFERENCES Dates(id),
-        FOREIGN KEY(web_id) REFERENCES Webs(id)
+        FOREIGN KEY(web_id) REFERENCES Webs(id),
+        FOREIGN KEY(date_id) REFERENCES Dates(id)
         );
 
     CREATE TABLE IF NOT EXISTS Dates (
@@ -111,7 +111,7 @@ while True:
         conn.commit()
 
     cur.execute(
-        'SELECT Pages.id, Pages.url FROM Pages WHERE (date_id is NULL or (SELECT date FROM Dates WHERE Dates.id = date_id) < ?) and (interest is NULL or 1) and error is NULL ORDER BY RANDOM() LIMIT 1', (today,))
+        'SELECT Pages.id, Pages.url FROM Pages WHERE (date_id is NULL or (SELECT date FROM Dates WHERE Dates.id = date_id) < ?) and (interest is NULL or interest > 0) and error is NULL ORDER BY RANDOM() LIMIT 1', (today,))
     try:
         fromid, url = cur.fetchone()
     except:
@@ -153,8 +153,18 @@ while True:
         cur.execute('UPDATE Pages SET error=-1 WHERE url=?', (url, ))
         conn.commit()
         continue
-    cur.execute('UPDATE Pages SET html=?, date_id = (SELECT id FROM Dates WHERE date = ?) WHERE url=?',
-                (memoryview(bytes(pg_inf["html"], encoding='utf-8')), today, url))
+
+    cur.execute('SELECT html, interest FROM Pages WHERE url=?', (url,))
+    old_html, interest = cur.fetchone()
+    if old_html == pg_inf['html']:
+        cur.execute(
+            'UPDATE Pages SET date_id = (SELECT id FROM Dates WHERE date = ?) WHERE url=?', (today, url))
+    else:
+        cur.execute('UPDATE Pages SET html=?, date_id = (SELECT id FROM Dates WHERE date = ?) WHERE url=?',
+                    (memoryview(bytes(pg_inf["html"], encoding='utf-8')), today, url))
+        if interest == 2:
+            cur.execute(
+                'UPDATE Pages SET interest=1 WHERE url=?', (today, url))
     conn.commit()
 
     # Retrieve all of the href links on anchor tags
