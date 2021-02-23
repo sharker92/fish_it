@@ -1,7 +1,6 @@
 .DS_Store
 alsuper.txt
 .vscode
-env/
 *.sqlite
 test.py
 data/

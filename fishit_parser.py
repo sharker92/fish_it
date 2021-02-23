@@ -55,14 +55,13 @@ while True:
     # Interest 2 = Interested, scraped since last html update.
     # Error -1 = Unable to retrieve or parse page [CRAWLER].
     # Error -2 = Unable to retrieve or parse page [PARSER].
-    cur.execute(
-        'SELECT id, url, html, web_id, date_id FROM Crawled.Pages WHERE (interest is NULL or interest == 1) and html IS NOT NULL and error is NULL ORDER BY RANDOM() LIMIT 1')
+    cur.execute('SELECT id, url, html, web_id, date_id FROM Crawled.Pages WHERE (interest is NULL or interest == 1) and html IS NOT NULL and error is NULL ORDER BY RANDOM() LIMIT 1')
     try:
         id, url, html, web_id, date_id = cur.fetchone()
     except:
         print('No unretrieved HTML pages found')
         break
-    print("Fetching:")
+    print("Scraping:")
     print(id, url, end=' ')
 
     # Parsing data
@@ -105,9 +104,9 @@ while True:
                 'UPDATE Crawled.Pages SET interest=-2 WHERE url=?', (url, ))
             conn.commit()
             break
-
-        cur.execute(
-            'INSERT OR IGNORE INTO Products (web_id, url_id, date_id, id_prod, prod_name, prod_price, data_fav) VALUES (?,(SELECT id FROM Urls WHERE url=?),?,?,?,?,?)', (web_id, url, date_id, prod_data['id_prod'], prod_data['prod_name'], prod_data['prod_price'], prod_data['data_fav']))
+# REVISAR url_id
+        cur.execute('INSERT OR IGNORE INTO Products (web_id, url_id, date_id, id_prod, prod_name, prod_price, data_fav) VALUES (?,(SELECT id FROM Urls WHERE url=?),?,?,?,?,?)',
+                    (web_id, url, date_id, prod_data['id_prod'], prod_data['prod_name'], prod_data['prod_price'], prod_data['data_fav']))
         prod_cnt += 1
 
     if len(prod_data) > 0:
