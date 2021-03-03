@@ -2,5 +2,8 @@
 alsuper.txt
 .vscode
 *.sqlite
-test.py
 data/
+env/
+Pipfile.lock
+*.png
+test.py
