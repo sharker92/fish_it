@@ -6,10 +6,15 @@ name = "pypi"
 [packages]
 requests-html = "*"
 requests = "*"
+sqlalchemy = "*"
+django = "*"
 
 [dev-packages]
 autopep8 = "*"
 flake8 = "*"
+sqlacodegen = "*"
+sqlitis = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.9"
