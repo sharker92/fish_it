@@ -65,7 +65,7 @@ def get_new_url(today):
     session = session_factory()
     try:
         qs = session.query(Page).filter(
-            (Page.dater.has(Date.dated < today)) | (Page.date_id.is_(None)),
+            (Page.date_r.has(Date.dated < today)) | (Page.date_id.is_(None)),
             (Page.interest.is_(None)) | (Page.interest > 0),
             (Page.error.is_(None))).order_by(func.random()).limit(1).all()[0]
     except IndexError:
@@ -108,7 +108,7 @@ def parse_html(qs, document):
     if pg_inf["content_type"] != 'text/html':
         print("Ignore non text/html page")
         qs.interest = 0
-        qs.dater = today
+        qs.date_r = today
         session.commit()
         result = "continue"
 
@@ -195,7 +195,7 @@ def crawl_pages():
             if pg_inf["content_type"] != 'text/html':
                 print("Ignore non text/html page")
                 qs.interest = 0
-                qs.dater = today
+                qs.date_r = today
                 session.commit()
                 continue
 

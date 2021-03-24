@@ -17,11 +17,14 @@ class Page(Base):
     date_r = relationship('Date')
     web_r = relationship('Web')
 
-    def __init__(self, url, html, interest, error, date_r, web_r):
+    def __init__(self, url, html=None,
+                 web_id=None, date_id=None,
+                 interest=None, error=None,
+                 date_r=None, web_r=None):
         self.url = url
         self.html = html
-        # self.web_id = web_id
-        # self.date_id = date_id
+        self.web_id = web_id
+        self.date_id = date_id
         self.interest = interest
         self.error = error
         self.date_r = date_r

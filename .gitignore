@@ -1,11 +1,11 @@
 .DS_Store
-alsuper.txt
 .vscode
 *.sqlite
 *.db
 data/
 env/
 Pipfile.lock
-*.png
 __pycache__
-test.py
+tempCodeRunnerFile.py
+Extras/
+try_help.py
