@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def add_url_to_db(url):
-    """Validate website into valid URL"""
+    """Validate URLs, if valid adds them to Pages and Webs Database"""
     session = session_factory()
     try:
         # pass if pressed enter and has at least http
@@ -52,6 +52,7 @@ def add_url_to_db(url):
 
 
 def input_today_at_db():
+    """Adds today date to Database"""
     session = session_factory()
     today = date.today()
     print("Today is: ", today)
@@ -62,6 +63,7 @@ def input_today_at_db():
 
 
 def get_new_url(today):
+    """Gets valid page for crawling"""
     session = session_factory()
     try:
         qs = session.query(Page).filter(
