@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 from datetime import date, timedelta
 import time
 import logging
+import random
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from sqlalchemy.sql.expression import func
@@ -29,7 +30,7 @@ def add_url_to_db(url):
     """Validate URLs, if valid adds them to Pages and Webs Database"""
     session = session_factory()
     try:
-        # pass if pressed enter and has at least http
+        # pass if pressed enter and has a valid url
         validate = URLValidator()
         validate(url)
     except ValidationError:
@@ -39,11 +40,9 @@ def add_url_to_db(url):
         if (url.endswith('/')):
             url = url[:-1]
         print("Adding to databases: ", url)
-        Web(url=url)
-        session.add(Web(url=url))
-        session.commit()
-        web = session.query(Web).filter_by(url=url).one()
-        session.add(Page(url=url, web_id=web.id))
+        web_orm = Web(url=url)
+        session.add(web_orm)
+        session.add(Page(url=url, web_r=web_orm))
         session.commit()
         print("\nActual Webs: ")
         qs = session.query(Web).all()
@@ -54,70 +53,71 @@ def add_url_to_db(url):
 def input_today_at_db():
     """Adds today date to Database"""
     session = session_factory()
-    today = date.today()
-    print("Today is: ", today)
-    session.add(Date(dated=today))
+    today_date = date.today()
+    print("Today is: ", today_date)
+    session.add(Date(dated=today_date))
     session.commit()
     session.close()
-    return today
+    return today_date
 
 
-def get_new_url(today):
+def get_crawlable_urls(today_date):
     """Gets valid page for crawling"""
     session = session_factory()
-    try:
-        qs = session.query(Page).filter(
-            (Page.date_r.has(Date.dated < today)) | (Page.date_id.is_(None)),
-            (Page.interest.is_(None)) | (Page.interest > 0),
-            (Page.error.is_(None))).order_by(func.random()).limit(1).all()[0]
-    except IndexError:
-        qs = None
+    crawlable_urls = session.query(Page).filter(
+        (Page.date_r.has(Date.dated < today_date)) |
+        (Page.date_id.is_(None)),
+        (Page.interest.is_(None)) | (Page.interest > 0),
+        (Page.error.is_(None))).all()
+    if not crawlable_urls:
         print('No unretrieved HTML pages found')
     session.close()
-    return qs
+    return crawlable_urls
 
 
-def get_html(qs):
+def get_html(crwlbl_url):
     session = session_factory()
-    document = None
+    response = None
     try:
         header = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
-        headers = {
-            'User-Agent': header}
-        document = requests.get(qs.url, headers=headers)
+        headers = {'User-Agent': header}
+        response = requests.get(crwlbl_url, headers=headers)
     except Exception:
-        logging.exception(
-            'Unable to retrieve or parse page: {}\n\n'.format(qs))
+        logging.warning('Unable to retrieve page: {}\n\n'.format(crwlbl_url))
+        qs = session.query(Page).filter_by(url=crwlbl_url).one()
         qs.error = -1
         session.commit()
     session.close()
-    return document
+    return response
 
 
-def parse_html(qs, document):
+def extract_html_content(crwlbl_url, response, today_date):
     session = session_factory()
     pg_inf = {}
-    pg_inf["status_code"] = document.status_code
+    pg_inf["status_code"] = response.status_code
+    pg_inf["content_type"] = response.headers["content-type"][:9]
+    pg_inf["html"] = response.text
+    qs = session.query(Page).filter_by(url=crwlbl_url).one()
+    qs_date = session.query(Date).filter_by(dated=today_date).one()
 
     if pg_inf["status_code"] != 200:
-        print("\nError on page: ", document.status_code)
+        print("\nError on page: ", response.status_code)
         qs.error = pg_inf["status_code"]
+        qs.date_r = qs_date
         session.commit()
-        result = "continue"
-
-    pg_inf["content_type"] = document.headers["content-type"][:9]
+        return None
 
     if pg_inf["content_type"] != 'text/html':
         print("Ignore non text/html page")
         qs.interest = 0
-        qs.date_r = today
+        qs.date_r = qs_date
         session.commit()
-        result = "continue"
+        return None
 
-    pg_inf["html"] = document.text
     # imprime longitud del html
     print('('+str(len(pg_inf["html"]))+')', end=' ')
-    r_html = HTML(html=pg_inf["html"])
+
+    return pg_inf
 
 
 def crawl_pages():
@@ -161,60 +161,31 @@ def crawl_pages():
     # print(webs, "\n")
 
     pgs_cnt = 0
-    today = input_today_at_db()
+    today_date = input_today_at_db()
     start = time.time()
     while True:
-        if today != date.today():
-            today = input_today_at_db()
-        qs = get_new_url(today)
-        if not qs:
+        if today_date != date.today():
+            today_date = input_today_at_db()
+        crawlable_urls = get_crawlable_urls(today_date)
+
+        if not crawlable_urls:
             break
+        crwlbl_url = random.choice(crawlable_urls)
         print("Fetching:")
-        print(qs.id, qs.url, end=' ')
-        document = get_html(qs)
-        if not document:
+        print(crwlbl_url.id, crwlbl_url.url, end=' ')
+        response = get_html(crwlbl_url)
+        if not response:
             continue
-        pg_inf = parse_html(qs, document)
+        pg_inf = extract_html_content(crwlbl_url, response, today_date)
         if not pg_inf:
             continue
-# TERMINAR aquí
-# REVISAR LO DE Las Sesiones
-        try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
-            document = requests.get(qs.url, headers=headers)
-            pg_inf = {}
-            pg_inf["status_code"] = document.status_code
+        prs_html = HTML(html=pg_inf["html"])
+        print(pg_inf["html"])
+        print(prs_html)
+        print(type(pg_inf["html"]))
+        print(type(prs_html))
+# CONTINUAR aquí
 
-            if pg_inf["status_code"] != 200:
-                print("\nError on page: ", document.status_code)
-                qs.error = pg_inf["status_code"]
-                session.commit()
-                continue
-
-            pg_inf["content_type"] = document.headers["content-type"][:9]
-
-            if pg_inf["content_type"] != 'text/html':
-                print("Ignore non text/html page")
-                qs.interest = 0
-                qs.date_r = today
-                session.commit()
-                continue
-
-            pg_inf["html"] = document.text
-            # imprime longitud del html
-            print('('+str(len(pg_inf["html"]))+')', end=' ')
-            r_html = HTML(html=pg_inf["html"])
-        except KeyboardInterrupt:
-            print('\n\nProgram interrupted by user...')
-            break
-        except Exception:
-            logging.exception(
-                'Unable to retrieve or parse page: {}\n'.format(qs))
-            print()
-            qs.error = -1
-            session.commit()
-            continue
         print("AQUI")
         input()
         cur.execute('SELECT html, interest FROM Pages WHERE url=?', (url,))
@@ -231,7 +202,7 @@ def crawl_pages():
         conn.commit()
 
         # Retrieve all of the href links on anchor tags
-        href_list = r_html.xpath('//a/@href')
+        href_list = prs_html.xpath('//a/@href')
         count = 0
         for href in href_list:
             if (href is None):
